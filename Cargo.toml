@@ -108,7 +108,7 @@ vsinpu = [ "ort-sys/vsinpu" ]
 ort-sys = { version = "=2.0.0-rc.12", path = "ort-sys", default-features = false }
 smallvec = { version = "1.15", default-features = false, features = [ "const_generics" ] }
 
-ndarray = { version = "0.17", default-features = false, optional = true }
+ndarray = { git = "https://github.com/AdaWorldAPI/ndarray", branch = "claude/retrofit-ml-backends-ndarray-rvoaJ", default-features = false, features = ["std"], optional = true }
 tracing = { version = "0.1", optional = true, default-features = false }
 half = { version = "2.1", default-features = false, optional = true }
 num-complex = { version = "0.4", default-features = false, optional = true }
