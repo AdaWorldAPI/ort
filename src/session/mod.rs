@@ -34,7 +34,7 @@ use smallvec::SmallVec;
 use crate::{
 	AsPointer,
 	environment::Environment,
-	error::{Error, ErrorCode, Result, status_to_result},
+	error::{Error, ErrorCode, Result},
 	memory::Allocator,
 	ortsys,
 	util::{AllocatedString, STACK_SESSION_INPUTS, STACK_SESSION_OUTPUTS, with_cstr, with_cstr_ptr_array},
@@ -75,7 +75,6 @@ pub use self::{
 pub struct SharedSessionInner {
 	session_ptr: NonNull<ort_sys::OrtSession>,
 	pub(crate) allocator: Allocator,
-	_initializers: SmallVec<[Arc<DynValue>; 4]>,
 	/// Additional things we may need to hold onto for the duration of this session, like `OperatorDomain`s and
 	/// DLL handles for operator libraries.
 	_extras: SmallVec<[Arc<dyn Any>; 4]>,
@@ -154,7 +153,6 @@ impl Session {
 	}
 
 	/// Returns this session's [`Allocator`].
-	#[must_use]
 	pub fn allocator(&self) -> &Allocator {
 		&self.inner.allocator
 	}
@@ -172,6 +170,21 @@ impl Session {
 	}
 
 	/// Returns a list of initializers which are overridable (i.e. also graph inputs).
+	///
+	/// ```
+	/// # use std::sync::Arc;
+	/// # use ort::{session::{RunOptions, Session}, value::{Value, ValueType, TensorRef, TensorElementType}};
+	/// # fn main() -> ort::Result<()> {
+	/// let session = Session::builder()?.commit_from_file("tests/data/overridable_initializer.onnx")?;
+	///
+	/// let mut overridable_initializers = session.overridable_initializers();
+	/// assert_eq!(overridable_initializers.len(), 1);
+	/// let f1 = overridable_initializers.pop().unwrap();
+	/// assert_eq!(f1.name(), "F1");
+	/// assert!(f1.dtype().is_tensor());
+	/// # 	Ok(())
+	/// # }
+	/// ```
 	#[must_use]
 	pub fn overridable_initializers(&self) -> Vec<OverridableInitializer> {
 		// can only fail if:
@@ -357,6 +370,8 @@ impl Session {
 		binding: &'b IoBinding,
 		run_options: Option<&'r RunOptions<NoSelectedOutputs>>
 	) -> Result<SessionOutputs<'b>> {
+		use crate::util::run_on_drop;
+
 		let run_options_ptr = if let Some(run_options) = run_options { run_options.ptr() } else { ptr::null() };
 		ortsys![unsafe RunWithBinding(self.inner.ptr().cast_mut(), run_options_ptr, binding.ptr())?];
 
@@ -365,15 +380,15 @@ impl Session {
 			let mut output_values_ptr: *mut *mut ort_sys::OrtValue = ptr::null_mut();
 			ortsys![unsafe GetBoundOutputValues(binding.ptr(), self.inner.allocator.ptr().cast_mut(), &mut output_values_ptr, &mut count)?; nonNull(output_values_ptr)];
 
+			let _guard = run_on_drop(|| unsafe {
+				self.inner.allocator.free(output_values_ptr.as_ptr());
+			});
 			let output_values = unsafe { slice::from_raw_parts(output_values_ptr.as_ptr(), count) }
 				.iter()
 				.map(|ptr| unsafe {
 					DynValue::from_ptr(NonNull::new(*ptr).expect("OrtValue ptrs returned by GetBoundOutputValues should not be null"), Some(self.inner()))
 				})
 				.collect();
-			unsafe {
-				self.inner.allocator.free(output_values_ptr.as_ptr());
-			}
 
 			Ok(SessionOutputs::new(binding.output_values.iter().map(|(k, _)| k.as_str()).collect(), output_values))
 		} else {
@@ -466,18 +481,18 @@ impl Session {
 		unsafe {
 			use core::ptr::write;
 
-			let ctx = ctx.assume_init_mut();
-			write(&mut ctx.inner, Arc::clone(&async_inner));
+			let ctx = ctx.as_mut_ptr();
+			write(&raw mut (*ctx).inner, Arc::clone(&async_inner));
 			// everything allocated within `run_inner_async` needs to be kept alive until we are certain inference has completed and
 			// ONNX Runtime no longer needs the data - i.e. when `async_callback` is called. `async_callback` will free all of
 			// this data just like we do in `run_inner`
-			write(&mut ctx.input_ort_values, input_ort_values);
-			write(&mut ctx._input_inner_holders, input_inner_holders);
-			write(&mut ctx.input_name_ptrs, input_name_ptrs);
-			write(&mut ctx.output_name_ptrs, output_name_ptrs);
-			write(&mut ctx.output_names, output_names);
-			write(&mut ctx.output_value_ptrs, output_tensor_ptrs);
-			write(&mut ctx.session_inner, &self.inner);
+			write(&raw mut (*ctx).input_ort_values, input_ort_values);
+			write(&raw mut (*ctx)._input_inner_holders, input_inner_holders);
+			write(&raw mut (*ctx).input_name_ptrs, input_name_ptrs);
+			write(&raw mut (*ctx).output_name_ptrs, output_name_ptrs);
+			write(&raw mut (*ctx).output_names, output_names);
+			write(&raw mut (*ctx).output_value_ptrs, output_tensor_ptrs);
+			write(&raw mut (*ctx).session_inner, &self.inner);
 		};
 		let ctx = Box::leak(unsafe { ctx.assume_init() });
 		crate::logging::create!(AsyncInferenceContext, ctx);
@@ -574,7 +589,7 @@ impl Session {
 			)
 		]
 		.await;
-		unsafe { crate::error::status_to_result(status) }?;
+		unsafe { Error::result_from_status(status) }?;
 
 		let outputs = output_tensors
 			.into_iter()
@@ -607,7 +622,7 @@ impl Session {
 		Ok(out)
 	}
 
-	/// Ends profiling for this session.
+	/// Ends profiling for this session. Returns the file name of the finalized profile.
 	///
 	/// Note that this must be explicitly called at the end of profiling, otherwise the profiling file will be empty.
 	pub fn end_profiling(&mut self) -> Result<String> {
@@ -647,14 +662,28 @@ impl Session {
 		Ok(())
 	}
 
+	/// Returns the version of the opset domain used by the model.
+	///
+	/// Requires the Model Editor API to be supported by the backend.
+	///
+	/// ```
+	/// # use std::sync::Arc;
+	/// # use ort::{session::{RunOptions, Session}, value::{Value, ValueType, TensorRef, TensorElementType}};
+	/// # fn main() -> ort::Result<()> {
+	/// let session = Session::builder()?.commit_from_file("tests/data/lora_model.onnx")?;
+	/// assert_eq!(session.opset_for_domain(ort::editor::ONNX_DOMAIN), Some(21));
+	/// # 	Ok(())
+	/// # }
+	/// ```
 	#[cfg(feature = "api-22")]
 	#[cfg_attr(docsrs, doc(cfg(feature = "api-22")))]
-	pub fn opset_for_domain(&self, domain: impl AsRef<str>) -> Result<u32> {
+	pub fn opset_for_domain(&self, domain: impl AsRef<str>) -> Option<u32> {
 		with_cstr(domain.as_ref().as_bytes(), &|domain| {
 			let mut opset = 0;
 			ortsys![@editor: unsafe SessionGetOpsetForDomain(self.inner.session_ptr.as_ptr(), domain.as_ptr(), &mut opset)?];
 			Ok(opset as u32)
 		})
+		.ok()
 	}
 }
 
@@ -707,7 +736,7 @@ pub(crate) mod io {
 	) -> Result<usize> {
 		let mut num_nodes = 0;
 		let status = unsafe { f(session_ptr.as_ptr(), &mut num_nodes) };
-		unsafe { status_to_result(status) }?;
+		unsafe { Error::result_from_status(status) }?;
 		Ok(num_nodes)
 	}
 
@@ -720,7 +749,7 @@ pub(crate) mod io {
 		let mut name_ptr: *mut c_char = ptr::null_mut();
 
 		let status = unsafe { f(session_ptr.as_ptr(), i, allocator.ptr().cast_mut(), &mut name_ptr) };
-		unsafe { status_to_result(status) }?;
+		unsafe { Error::result_from_status(status) }?;
 		if name_ptr.is_null() {
 			crate::util::cold();
 			return Err(crate::Error::new("expected `name_ptr` to not be null"));
@@ -737,7 +766,7 @@ pub(crate) mod io {
 		let mut typeinfo_ptr: *mut ort_sys::OrtTypeInfo = ptr::null_mut();
 
 		let status = unsafe { f(session_ptr.as_ptr(), i, &mut typeinfo_ptr) };
-		unsafe { status_to_result(status) }?;
+		unsafe { Error::result_from_status(status) }?;
 		let Some(typeinfo_ptr) = NonNull::new(typeinfo_ptr) else {
 			crate::util::cold();
 			return Err(crate::Error::new("expected `typeinfo_ptr` to not be null"));

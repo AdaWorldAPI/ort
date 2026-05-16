@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@radix-ui/themes';
 import { useTheme } from 'nextra-theme-docs';
 import { useEffect, useState } from 'react';
 
@@ -11,12 +12,10 @@ export function TocSponsors() {
 		setTheme(actualResolvedTheme ?? 'dark');
 	}, [ actualResolvedTheme ]);
 
-	return <>
-		<div>
-			<a href='https://rime.ai/' target="_blank">
-				<img src={`https://cdn.pyke.io/0/pyke:ort-rs/docs@0.0.0/sponsor-identity/rime-${resolvedTheme}.svg`} alt='Rime.ai' suppressHydrationWarning />
-			</a>
-			<p style={{ color: 'var(--gray-11)', fontSize: '0.7rem' }}>Authentic AI voice models for enterprise.</p>
-		</div>
-	</>;
+	return null;
+
+	return <Card>
+		<p style={{ fontFamily: '"Monaspace Neon"', textTransform: 'uppercase', color: 'var(--gray-9)', fontSize: '0.6rem', marginTop: '-4px', marginBottom: '4px' }}>Sponsored by</p>
+		{/* ... */}
+	</Card>;
 }

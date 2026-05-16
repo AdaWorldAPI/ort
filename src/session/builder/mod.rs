@@ -1,6 +1,7 @@
 use alloc::{
 	borrow::Cow,
-	sync::{Arc, Weak}
+	sync::{Arc, Weak},
+	vec::Vec
 };
 use core::{
 	any::Any,
@@ -10,8 +11,8 @@ use core::{
 use smallvec::SmallVec;
 
 use crate::{
-	AsPointer,
-	environment::{Environment, get_environment},
+	AsPointer, Error,
+	environment::{self, Environment},
 	error::Result,
 	logging::LoggerFunction,
 	memory::MemoryInfo,
@@ -32,6 +33,22 @@ mod impl_options;
 #[cfg_attr(docsrs, doc(cfg(feature = "api-22")))]
 pub use self::editable::*;
 pub use self::impl_options::*;
+
+/// `Result` type returned by [`SessionBuilder`] methods.
+///
+/// This type supports [error recovery](Error::recover):
+/// ```
+/// # use ort::session::{builder::GraphOptimizationLevel, Session};
+/// # fn main() -> ort::Result<()> {
+/// let session = Session::builder()?
+/// 	.with_optimization_level(GraphOptimizationLevel::All)
+/// 	// Optimization isn't enabled in minimal builds of ONNX Runtime, so throws an error. We can just ignore it.
+/// 	.unwrap_or_else(|e| e.recover())
+/// 	.commit_from_file("tests/data/upsample.onnx")?;
+/// # Ok(())
+/// # }
+/// ```
+pub type BuilderResult = Result<SessionBuilder, Error<SessionBuilder>>;
 
 /// Creates a session using the builder pattern.
 ///
@@ -54,9 +71,9 @@ pub use self::impl_options::*;
 pub struct SessionBuilder {
 	session_options_ptr: Arc<SessionOptionsPointer>,
 	memory_info: Option<Arc<MemoryInfo>>,
-	operator_domains: SmallVec<[Arc<OperatorDomain>; 4]>,
-	initializers: SmallVec<[Arc<DynValue>; 4]>,
-	external_initializer_buffers: SmallVec<[Cow<'static, [u8]>; 4]>,
+	operator_domains: SmallVec<[Arc<OperatorDomain>; 1]>,
+	initializers: Vec<Arc<DynValue>>,
+	external_initializer_buffers: Vec<Cow<'static, [u8]>>,
 	prepacked_weights: Option<PrepackedWeights>,
 	thread_manager: Option<Arc<dyn Any>>,
 	logger: Option<Arc<LoggerFunction>>,
@@ -103,7 +120,7 @@ impl SessionBuilder {
 	/// # }
 	/// ```
 	pub fn new() -> Result<Self> {
-		let _environment = get_environment()?;
+		let environment = environment::current()?;
 
 		let mut session_options_ptr: *mut ort_sys::OrtSessionOptions = ptr::null_mut();
 		ortsys![unsafe CreateSessionOptions(&mut session_options_ptr)?; nonNull(session_options_ptr)];
@@ -111,27 +128,28 @@ impl SessionBuilder {
 		// target on-device usage; prefer efficiency by default
 		// .with_execution_providers/.with_auto_ep will override this
 		#[cfg(feature = "api-22")]
-		let _ = ortsys![@ort: unsafe SessionOptionsSetEpSelectionPolicy(session_options_ptr.as_ptr(), AutoEpPolicy::MaxEfficiency.into()) as Result];
+		let _ = ortsys![@ort: unsafe SessionOptionsSetEpSelectionPolicy(session_options_ptr.as_ptr(), AutoDevicePolicy::MaxEfficiency.into()) as Result];
 
 		Ok(Self {
 			session_options_ptr: Arc::new(SessionOptionsPointer::new(session_options_ptr)),
 			memory_info: None,
 			operator_domains: SmallVec::new(),
-			initializers: SmallVec::new(),
-			external_initializer_buffers: SmallVec::new(),
+			initializers: Vec::new(),
+			external_initializer_buffers: Vec::new(),
 			prepacked_weights: None,
 			thread_manager: None,
 			logger: None,
 			no_global_thread_pool: false,
 			no_env_eps: false,
-			environment: _environment
+			environment
 		})
 	}
 
-	pub(crate) fn add_config_entry(&mut self, key: &str, value: &str) -> Result<()> {
+	#[inline]
+	pub(crate) fn add_config_entry(&mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<()> {
 		let ptr = self.ptr_mut();
-		with_cstr(key.as_bytes(), &|key| {
-			with_cstr(value.as_bytes(), &|value| {
+		with_cstr(key.as_ref().as_bytes(), &|key| {
+			with_cstr(value.as_ref().as_bytes(), &|value| {
 				ortsys![unsafe AddSessionConfigEntry(ptr, key.as_ptr(), value.as_ptr())?];
 				Ok(())
 			})
@@ -144,7 +162,7 @@ impl SessionBuilder {
 	/// # use ort::session::{builder::GraphOptimizationLevel, Session};
 	/// # use std::{thread, time::Duration};
 	/// # fn main() -> ort::Result<()> {
-	/// let builder = Session::builder()?
+	/// let mut builder = Session::builder()?
 	/// 	.with_optimization_level(GraphOptimizationLevel::Level1)?
 	/// 	.with_intra_threads(1)?;
 	///
@@ -166,9 +184,11 @@ impl SessionBuilder {
 	}
 
 	/// Adds a custom configuration entry to the session.
-	pub fn with_config_entry(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> Result<Self> {
-		self.add_config_entry(key.as_ref(), value.as_ref())?;
-		Ok(self)
+	pub fn with_config_entry(mut self, key: impl AsRef<str>, value: impl AsRef<str>) -> BuilderResult {
+		match self.add_config_entry(key.as_ref(), value.as_ref()) {
+			Ok(()) => Ok(self),
+			Err(e) => Err(e.with_recover(self))
+		}
 	}
 }
 
@@ -201,7 +221,7 @@ impl LoadCanceler {
 	/// # use ort::session::{builder::GraphOptimizationLevel, Session};
 	/// # use std::{thread, time::Duration};
 	/// # fn main() -> ort::Result<()> {
-	/// let builder = Session::builder()?
+	/// let mut builder = Session::builder()?
 	/// 	.with_optimization_level(GraphOptimizationLevel::Level1)?
 	/// 	.with_intra_threads(1)?;
 	///
@@ -247,5 +267,29 @@ impl Drop for SessionOptionsPointer {
 	fn drop(&mut self) {
 		ortsys![unsafe ReleaseSessionOptions(self.0.as_ptr())];
 		crate::logging::drop!(SessionBuilder, self.0.as_ptr());
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use alloc::sync::Arc;
+	use core::sync::atomic::{AtomicBool, Ordering};
+
+	use super::SessionBuilder;
+
+	#[test]
+	fn test_session_builder_clone() -> crate::Result<()> {
+		let was_called = Arc::new(AtomicBool::new(false));
+		let builder = SessionBuilder::new()?.with_logger(Arc::new({
+			let was_called = Arc::clone(&was_called);
+			move |_level: crate::logging::LogLevel, _category: &str, _id: &str, _code_location: &str, _message: &str| {
+				was_called.store(true, Ordering::Release);
+			}
+		}))?;
+		let mut builder2 = builder.clone();
+		drop(builder);
+		let _session = builder2.commit_from_file("tests/data/upsample.onnx")?;
+		assert!(was_called.load(Ordering::Acquire));
+		Ok(())
 	}
 }

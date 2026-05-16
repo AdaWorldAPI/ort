@@ -33,6 +33,7 @@ impl Drop for Attribute {
 	}
 }
 
+#[diagnostic::on_unimplemented(message = "`{Self}` is not a supported operator attribute")]
 pub trait FromKernelAttributes<'s> {
 	/// Reads the value of the attribute from an [`ort_sys::OrtKernelInfo`] given its C name.
 	#[doc(hidden)]
@@ -43,6 +44,7 @@ pub trait FromKernelAttributes<'s> {
 	private_trait!();
 }
 
+#[diagnostic::on_unimplemented(message = "`{Self}` is not a supported operator attribute")]
 pub trait FromOpAttr {
 	#[doc(hidden)]
 	fn attr_type() -> ort_sys::OrtOpAttrType;
@@ -56,6 +58,7 @@ pub trait FromOpAttr {
 	private_trait!();
 }
 
+#[diagnostic::on_unimplemented(message = "`{Self}` is not a supported operator attribute")]
 pub trait ToAttribute {
 	#[doc(hidden)]
 	unsafe fn to_attribute(&self, name: *const ort_sys::c_char) -> Result<NonNull<ort_sys::OrtOpAttr>>
@@ -197,9 +200,9 @@ impl FromOpAttr for String {
 	where
 		Self: Sized
 	{
-		let mut out = vec![0_u8; len];
-		ortsys![unsafe ReadOpAttr(attr, ort_sys::OrtOpAttrType::ORT_OP_ATTR_STRING, out.as_mut_ptr().cast(), len, &mut len)?];
-		debug_assert_eq!(out.len(), len, "int attribute is smaller/larger than expected");
+		let mut out = vec![0_u8; len + 1];
+		ortsys![unsafe ReadOpAttr(attr, ort_sys::OrtOpAttrType::ORT_OP_ATTR_STRING, out.as_mut_ptr().cast(), len + 1, &mut len)?];
+		debug_assert_eq!(out.len(), len + 1, "string attribute is smaller/larger than expected");
 		CString::from_vec_with_nul(out)
 			.map_err(|_| Error::new("invalid string attribute contents"))
 			.and_then(|f| f.into_string().map_err(|_| Error::new("invalid string attribute contents")))

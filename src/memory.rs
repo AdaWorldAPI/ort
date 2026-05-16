@@ -342,7 +342,7 @@ impl From<ort_sys::OrtMemType> for MemoryType {
 pub enum DeviceType {
 	CPU,
 	GPU,
-	FPGA
+	NPU
 }
 
 impl From<DeviceType> for ort_sys::OrtMemoryInfoDeviceType {
@@ -350,7 +350,7 @@ impl From<DeviceType> for ort_sys::OrtMemoryInfoDeviceType {
 		match value {
 			DeviceType::CPU => ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_CPU,
 			DeviceType::GPU => ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_GPU,
-			DeviceType::FPGA => ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_FPGA
+			DeviceType::NPU => ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_FPGA
 		}
 	}
 }
@@ -360,7 +360,7 @@ impl From<ort_sys::OrtMemoryInfoDeviceType> for DeviceType {
 		match value {
 			ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_CPU => DeviceType::CPU,
 			ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_GPU => DeviceType::GPU,
-			ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_FPGA => DeviceType::FPGA
+			ort_sys::OrtMemoryInfoDeviceType::OrtMemoryInfoDeviceType_FPGA => DeviceType::NPU
 		}
 	}
 }
@@ -400,7 +400,7 @@ impl MemoryInfo {
 	pub fn new(allocation_device: AllocationDevice, device_id: c_int, allocator_type: AllocatorType, memory_type: MemoryType) -> Result<Self> {
 		let mut ptr: *mut ort_sys::OrtMemoryInfo = ptr::null_mut();
 		ortsys![
-			unsafe CreateMemoryInfo(allocation_device.as_str().as_ptr().cast(), allocator_type.into(), device_id, memory_type.into(), &mut ptr)?;
+			unsafe CreateMemoryInfo(allocation_device.0.as_ptr().cast(), allocator_type.into(), device_id, memory_type.into(), &mut ptr)?;
 			nonNull(ptr)
 		];
 		crate::logging::create!(MemoryInfo, ptr);
@@ -426,7 +426,7 @@ impl MemoryInfo {
 
 	// All getter functions are (at least currently) infallible - they simply just dereference the corresponding fields,
 	// and always return `nullptr` for the status; so none of these have to return `Result`s.
-	// https://github.com/microsoft/onnxruntime/blob/v1.24.2/onnxruntime/core/framework/allocator.cc#L330
+	// https://github.com/microsoft/onnxruntime/blob/v1.26.0/onnxruntime/core/framework/allocator.cc#L338
 
 	/// Returns the [`MemoryType`] described by this struct.
 	/// ```

@@ -22,8 +22,8 @@ exclude = [
 
 [package]
 name = "ort"
-description = "A safe Rust wrapper for ONNX Runtime 1.24 - Optimize and accelerate machine learning inference & training"
-version = "2.0.0-rc.11"
+description = "A safe Rust wrapper for ONNX Runtime 1.26 - Optimize and accelerate machine learning inference & training"
+version = "2.0.0-rc.12"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
@@ -36,7 +36,7 @@ authors = [
 	"pyke.io <contact@pyke.io>",
 	"Nicolas Bigaouette <nbigaouette@gmail.com>"
 ]
-include = [ "/src/", "/LICENSE-APACHE", "/LICENSE-MIT", "/README.md" ]
+include = [ "/src/", "/LICENSE-APACHE", "/LICENSE-MIT" ]
 
 [badges.maintenance]
 status = "actively-developed"
@@ -47,9 +47,9 @@ targets = ["x86_64-unknown-linux-gnu", "wasm32-unknown-unknown"]
 rustdoc-args = [ "--cfg", "docsrs" ]
 
 [features]
-default = [ "std", "ndarray", "tracing", "download-binaries", "tls-native", "copy-dylibs", "api-24" ]
+default = [ "std", "ndarray", "tracing", "download-binaries", "tls-native", "copy-dylibs", "api-26" ]
 
-std = [ "ort-sys/std", "ndarray/std", "tracing?/std" ]
+std = [ "ort-sys/std", "ndarray?/std", "tracing?/std" ]
 training = [ "ort-sys/training" ]
 
 ndarray = [ "dep:ndarray" ]
@@ -72,6 +72,8 @@ api-21 = [ "ort-sys/api-21", "api-20" ]
 api-22 = [ "ort-sys/api-22", "api-21" ]
 api-23 = [ "ort-sys/api-23", "api-22" ]
 api-24 = [ "ort-sys/api-24", "api-23" ]
+api-25 = [ "ort-sys/api-25", "api-24" ]
+api-26 = [ "ort-sys/api-26", "api-25" ]
 
 tls-rustls = [ "ort-sys/tls-rustls", "ureq?/rustls" ]
 tls-rustls-no-provider = [ "ort-sys/tls-rustls-no-provider", "ureq?/rustls-no-provider" ]
@@ -100,9 +102,10 @@ qnn = [ "ort-sys/qnn" ]
 webgpu = [ "ort-sys/webgpu" ]
 azure = [ "ort-sys/azure" ]
 nvrtx = [ "ort-sys/nvrtx" ]
+vsinpu = [ "ort-sys/vsinpu" ]
 
 [dependencies]
-ort-sys = { version = "=2.0.0-rc.11", path = "ort-sys", default-features = false }
+ort-sys = { version = "=2.0.0-rc.12", path = "ort-sys", default-features = false }
 smallvec = { version = "1.15", default-features = false, features = [ "const_generics" ] }
 
 ndarray = { version = "0.17", default-features = false, optional = true }

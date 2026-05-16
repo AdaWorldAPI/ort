@@ -52,7 +52,7 @@ function Footer() {
 			<p style={{ fontWeight: '600' }}>
 				made with <FooterEmoji /> by
 				<a target="_blank" href="https://pyke.io/">
-					<svg height='12' viewBox='0 0 21 10' style={{ display: 'inline', marginLeft: '5px', marginTop: '-4px' }}>
+					<svg height='12' viewBox='0 0 21 10' style={{ display: 'inline', marginLeft: '5px', marginTop: '-3px' }}>
 						<rect width='10' height='10' fill='#00BDFF' />
 						<rect x='11' width='10' height='10' fill='#00FF86' />
 					</svg>
@@ -76,19 +76,20 @@ export default async function RootLayout({ children }) {
 						defaultTheme: 'system'
 					}}
 					navbar={<Navbar
-						logo={<img src='/assets/banner.png' style={{ height: '34px' }} />}
+						logo={<>
+							<img src='/assets/banner.png' style={{ height: '34px' }} />
+							<svg height='5' viewBox='0 0 21 10' style={{ marginLeft: '3px', marginTop: '6px', alignSelf: 'start' }}>
+								<rect width='10' height='10' fill='#00BDFF' />
+								<rect x='11' width='10' height='10' fill='#00FF86' />
+							</svg>
+						</>}
 						chatLink='https://discord.gg/uQtsNu2xMa'
 						projectLink='https://github.com/pykeio/ort'
 					/>}
 					footer={<Footer />}
 					pageMap={pageMap}
 					copyPageButton={false}
-					toc={{
-						extraContent: <Card>
-							<p style={{ fontFamily: '"Monaspace Neon"', textTransform: 'uppercase', color: 'var(--gray-9)', fontSize: '0.6rem', marginTop: '-4px', marginBottom: '4px' }}>Sponsored by</p>
-							<TocSponsors />
-						</Card>
-					}}
+					toc={{ extraContent: <TocSponsors /> }}
 				>
 					{children}
 				</Layout>

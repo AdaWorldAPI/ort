@@ -37,7 +37,7 @@ pub use self::{
 		DynSequence, DynSequenceRef, DynSequenceRefMut, DynSequenceValueType, Sequence, SequenceRef, SequenceRefMut, SequenceValueType, SequenceValueTypeMarker
 	},
 	impl_tensor::{
-		DefiniteTensorValueTypeMarker, DynTensor, DynTensorRef, DynTensorRefMut, DynTensorValueType, IntoTensorElementType, OwnedTensorArrayData,
+		DefiniteTensorValueTypeMarker, DynTensor, DynTensorRef, DynTensorRefMut, DynTensorValueType, IntoShape, IntoTensorElementType, OwnedTensorArrayData,
 		PrimitiveTensorElementType, Shape, SymbolicDimensions, Tensor, TensorArrayData, TensorArrayDataMut, TensorArrayDataParts, TensorElementType, TensorRef,
 		TensorRefMut, TensorValueType, TensorValueTypeMarker, ToShape, Utf8Data
 	},
@@ -116,7 +116,7 @@ pub struct ValueRef<'v, Type: ValueTypeMarker + ?Sized = DynValueTypeMarker> {
 impl<'v, Type: ValueTypeMarker + ?Sized> ValueRef<'v, Type> {
 	pub(crate) fn new(inner: Value<Type>) -> Self {
 		ValueRef {
-			// We cannot upgade a value which we cannot drop, i.e. `ValueRef`s used in operator kernels. Those only last for the
+			// We cannot upgrade a value which we cannot drop, i.e. `ValueRef`s used in operator kernels. Those only last for the
 			// duration of the kernel, allowing an upgrade would allow a UAF.
 			upgradable: inner.inner.drop,
 			inner,
@@ -169,7 +169,7 @@ pub struct ValueRefMut<'v, Type: ValueTypeMarker + ?Sized = DynValueTypeMarker> 
 impl<'v, Type: ValueTypeMarker + ?Sized> ValueRefMut<'v, Type> {
 	pub(crate) fn new(inner: Value<Type>) -> Self {
 		ValueRefMut {
-			// We cannot upgade a value which we cannot drop, i.e. `ValueRef`s used in operator kernels. Those only last for the
+			// We cannot upgrade a value which we cannot drop, i.e. `ValueRef`s used in operator kernels. Those only last for the
 			// duration of the kernel, allowing an upgrade would allow a UAF.
 			upgradable: inner.inner.drop,
 			inner,
@@ -337,7 +337,7 @@ impl<Type: ValueTypeMarker + ?Sized> Value<Type> {
 		&self.inner.dtype
 	}
 
-	/// Construct a [`Value`] from a C++ [`ort_sys::OrtValue`] pointer.
+	/// Construct a [`Value`] from a C++ [`ort_sys::OrtValue`] pointer. Takes ownership of `ptr`.
 	///
 	/// If the value belongs to a session (i.e. if it is the result of an inference run), you must provide the
 	/// [`SharedSessionInner`] (acquired from [`Session::inner`](crate::session::Session::inner)). This ensures the

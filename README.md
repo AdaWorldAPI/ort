@@ -1,16 +1,10 @@
 <div align=center>
 <img src="https://parcel.pyke.io/v2/cdn/assetdelivery/ortrsv2/docs/trend-banner.png" width="350px">
-<hr />
-<a href="https://app.codecov.io/gh/pykeio/ort" target="_blank"><img alt="Coverage Results" src="https://img.shields.io/codecov/c/gh/pykeio/ort?style=for-the-badge"></a> <a href="https://crates.io/crates/ort" target="_blank"><img alt="Crates.io" src="https://img.shields.io/crates/d/ort?style=for-the-badge"></a> <a href="https://opencollective.com/pyke-osai" target="_blank"><img alt="Open Collective backers and sponsors" src="https://img.shields.io/opencollective/all/pyke-osai?style=for-the-badge&label=sponsors"></a>
-<br />
-<a href="https://crates.io/crates/ort" target="_blank"><img alt="Crates.io" src="https://img.shields.io/crates/v/ort?style=for-the-badge&label=ort&logo=rust"></a> <img alt="ONNX Runtime" src="https://img.shields.io/badge/onnxruntime-v1.24.2-blue?style=for-the-badge&logo=cplusplus">
-<br />
-
-| 💖 Sponsored by | |
-|:------------:|---|
-| <a href="https://rime.ai/" target="_blank"><img src="https://cdn.pyke.io/0/pyke:ort-rs/docs@0.0.0/sponsor-identity/rime.svg?_0" alt="Rime.ai"/></a> | Authentic AI voice models for enterprise. |
-
 </div>
+<div align=center>
+<a href="https://app.codecov.io/gh/pykeio/ort" target="_blank"><img alt="Coverage Results" src="https://img.shields.io/codecov/c/gh/pykeio/ort?style=for-the-badge"></a> <img alt="MSRV" src="https://img.shields.io/crates/msrv/ort?style=for-the-badge"> <img alt="ONNX Runtime" src="https://img.shields.io/badge/onnxruntime-v1.26.0-blue?style=for-the-badge&logo=cplusplus">
+</div>
+<hr /><br />
 
 `ort` is a Rust interface for performing hardware-accelerated inference & training on machine learning models in the [Open Neural Network Exchange](https://onnx.ai/) (ONNX) format.
 
@@ -22,7 +16,7 @@ When you need to deploy a PyTorch/TensorFlow/Keras/scikit-learn/PaddlePaddle mod
 
 ## 📖 Documentation
 - [Guide](https://ort.pyke.io/)
-- [API reference](https://docs.rs/ort/2.0.0-rc.11/ort/)
+- [API reference](https://docs.rs/ort/2.0.0-rc.12/ort/)
 - [Examples](https://github.com/pykeio/ort/tree/main/examples)
 - [Migrating from v1.x to v2.0](https://ort.pyke.io/migrating/v2)
 
@@ -43,18 +37,18 @@ When you need to deploy a PyTorch/TensorFlow/Keras/scikit-learn/PaddlePaddle mod
     Businesses that sponsor pyke will appear at the top of the README instead!
 -->
 
-- **[Koharu](https://github.com/mayocream/koharu)** uses `ort` to detect, OCR, and inpaint manga pages.
-- **[BoquilaHUB](https://github.com/boquila/boquilahub/)** uses `ort` for local AI deployment in biodiversity conservation efforts.
-- **[Magika](https://github.com/google/magika)** uses `ort` for content type detection.
-- **[Text Embeddings Inference (TEI)](https://github.com/huggingface/text-embeddings-inference)** uses `ort` to deliver high-performance ONNX runtime inference for text embedding models.
-- **[`sbv2-api`](https://github.com/neodyland/sbv2-api)** is a fast implementation of Style-BERT-VITS2 text-to-speech using `ort`.
-- **[CamTrap Detector](https://github.com/bencevans/camtrap-detector)** uses `ort` to detect animals, humans and vehicles in trail camera imagery.
-- **[oar-ocr](https://github.com/GreatV/oar-ocr)** A comprehensive OCR library, built in Rust with `ort` for efficient inference.
+- **[Text Embeddings Inference (TEI)](https://github.com/huggingface/text-embeddings-inference)** uses `ort` to deliver high-performance ONNX Runtime inference for text embedding models.
+- **[Magika](https://github.com/google/magika)** uses `ort` for neural network-based file type detection.
 - **[retto](https://github.com/NekoImageLand/retto)** uses `ort` for reliable, fast ONNX inference of PaddleOCR models on Desktop and WASM platforms.
-- **[Ahnlich](https://github.com/deven96/ahnlich)** uses `ort` to power their AI proxy for semantic search applications.
-- **[Valentinus](https://github.com/kn0sys/valentinus)** uses `ort` to provide embedding model inference inside LMDB.
 - **[edge-transformers](https://github.com/npc-engine/edge-transformers)** uses `ort` for accelerated transformer model inference at the edge.
-- **[`FastEmbed-rs`](https://github.com/Anush008/fastembed-rs)** uses `ort` for generating vector embeddings, reranking locally.
+- **[`sbv2-api`](https://github.com/neodyland/sbv2-api)** is a fast implementation of Style-BERT-VITS2 text-to-speech using `ort`.
+- **[BoquilaHUB](https://github.com/boquila/boquilahub/)** uses `ort` for local AI deployment in biodiversity conservation efforts.
+- **[CamTrap Detector](https://github.com/bencevans/camtrap-detector)** uses `ort` to detect animals, humans and vehicles in trail camera imagery.
 - **[Ortex](https://github.com/relaypro-open/ortex)** uses `ort` for safe ONNX Runtime bindings in Elixir.
-- **[SilentKeys](https://github.com/gptguy/silentkeys)** uses `ort` for fast, on-device real-time dictation with NVIDIA Parakeet and Silero VAD.
+- **[oar-ocr](https://github.com/GreatV/oar-ocr)** A comprehensive OCR library, built in Rust with `ort` for efficient inference.
+- **[`FastEmbed-rs`](https://github.com/Anush008/fastembed-rs)** uses `ort` for generating vector embeddings, reranking locally.
+- **[Ahnlich](https://github.com/deven96/ahnlich)** uses `ort` to power their AI proxy for semantic search applications.
 - **[Murmure](https://github.com/Kieirra/murmure)** uses `ort` as its core engine, leveraging NVIDIA Parakeet to deliver fully local, free, private and cross‑platform Speech‑to‑Text enhanced with LLM post‑processing.
+- **[Valentinus](https://github.com/kn0sys/valentinus)** uses `ort` to provide embedding model inference inside LMDB.
+- **[SilentKeys](https://github.com/gptguy/silentkeys)** uses `ort` for fast, on-device real-time dictation with NVIDIA Parakeet and Silero VAD.
+- **[Xybrid](https://github.com/xybrid-ai/xybrid)** uses `ort` to run LLMs, ASR, and TTS natively on-device across iOS, Android, Flutter, and Unity apps and games.
